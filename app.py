@@ -474,5 +474,7 @@ if __name__ == "__main__":
     # On the course server: HOST=0.0.0.0 PORT=<your port> python3 app.py
     # app.run(host=os.environ.get("HOST", "127.0.0.1"), port=int(os.environ.get("PORT", "5000")),
     #         debug=os.environ.get("FLASK_DEBUG", "1" if os.environ.get("HOST") is None else "0") == "1")
-    app.run(host=os.environ.get("HOST", "0.0.0.0"), port=int(os.environ.get("PORT", "5043")),
+    # Default to localhost: debug mode is on when HOST is unset, and the Werkzeug debugger must never
+    # be reachable from other machines. Set HOST=0.0.0.0 explicitly on the course server (debug turns off).
+    app.run(host=os.environ.get("HOST", "127.0.0.1"), port=int(os.environ.get("PORT", "5043")),
             debug=os.environ.get("FLASK_DEBUG", "1" if os.environ.get("HOST") is None else "0") == "1")

@@ -8,7 +8,8 @@ listening history) are synthetic, generated on top of those real tracks.
 ## Setup
 
 1. **MySQL** — any MySQL 5.7+/8.x server (local install or the course server). Put its host, user,
-   password and database name in [config.py](config.py) (or set `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`).
+   password and database name in a git-ignored `.env` file (`DB_HOST=…`, `DB_PORT=…`, `DB_USER=…`,
+   `DB_PASSWORD=…`, `DB_NAME=…`, one per line) or set them as environment variables. Never commit them in [config.py](config.py).
    The loader creates the database if your account is allowed to; otherwise create it first.
 2. **Data** — download the dataset from Kaggle and unzip `dataset.csv` into `data/`.
 3. **Install, load, run:**
@@ -36,7 +37,7 @@ On db8:
 ```
 cd ~/songtinder
 python3 -m pip install --user -r requirements.txt
-nano config.py                       # MySQL host/user/password/database from the professor
+nano .env                            # DB_HOST/DB_USER/DB_PASSWORD/DB_NAME from the professor
 python3 load_data.py                 # reads data/dataset.csv
 HOST=0.0.0.0 PORT=YOURPORT nohup python3 app.py > app.log 2>&1 &
 ```

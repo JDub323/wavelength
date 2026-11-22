@@ -149,7 +149,8 @@ def generate_users_and_activity(conn, n_users, seed=42):
                        FROM track_genres tg JOIN tracks t ON t.track_id = tg.track_id""")
         by_genre = {}
         for gid, track_id, pop, dur in cur.fetchall():
-            by_genre.setdefault(gid, []).append((track_id, pop + 1, dur))
+            # int(): some servers (e.g. MariaDB) return COALESCE(...) as Decimal
+            by_genre.setdefault(gid, []).append((track_id, int(pop) + 1, int(dur)))
         cur.execute("SELECT genre_id, name FROM genres")
         genre_names = dict(cur.fetchall())
 
