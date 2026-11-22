@@ -1,0 +1,27 @@
+{# Dropdown of checkboxes for picking any number of languages; none checked = any language. #}
+{% macro language_picker(languages, chosen=()) %}
+<details class="dropdown lang-picker">
+  <summary>{{ chosen|join(', ') if chosen else 'Any language' }}</summary>
+  <div class="menu">
+    {% for lang in languages %}
+      <label><input type="checkbox" name="languages" value="{{ lang }}" {{ 'checked' if lang in chosen }}> {{ lang }}</label>
+    {% endfor %}
+  </div>
+</details>
+{% endmacro %}
+
+{# Keeps each language picker's summary in sync with its boxes, and closes it when clicking elsewhere. #}
+{% macro language_picker_script() %}
+<script>
+  document.querySelectorAll('.lang-picker').forEach(picker => {
+    const summary = picker.querySelector('summary');
+    picker.addEventListener('change', () => {
+      const picked = [...picker.querySelectorAll('input:checked')].map(i => i.value);
+      summary.textContent = picked.length ? picked.join(', ') : 'Any language';
+    });
+  });
+  document.addEventListener('click', e => {
+    document.querySelectorAll('.lang-picker[open]').forEach(p => { if (!p.contains(e.target)) p.open = false; });
+  });
+</script>
+{% endmacro %}

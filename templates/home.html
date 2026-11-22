@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import language_picker, language_picker_script %}
 {% block content %}
 {% if requests_in %}
 <section class="card">
@@ -17,14 +18,21 @@
 <div class="grid">
   <section class="card">
     <h2>Your playlists</h2>
-    <form method="post" action="{{ url_for('create_playlist') }}" class="inline">
-      <input name="name" placeholder="New playlist name" required>
-      <select name="genre_id">
-        <option value="">Any genre</option>
-        {% for g in genres %}<option value="{{ g.genre_id }}">{{ g.name }}</option>{% endfor %}
-      </select>
-      <button class="btn small">Create</button>
+    <form method="post" action="{{ url_for('create_playlist') }}" class="create-form">
+      <div class="inline">
+        <input name="name" placeholder="New playlist name" required>
+        <select name="genre_id">
+          <option value="">Any genre</option>
+          {% for g in genres %}<option value="{{ g.genre_id }}">{{ g.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="inline">
+        <input name="vibe" maxlength="255" placeholder="Describe the vibe (optional), e.g. a 90s nighttime drive">
+        {{ language_picker(languages) }}
+        <button class="btn small">Create</button>
+      </div>
     </form>
+    {{ language_picker_script() }}
     {% for p in playlists %}
       <a class="row link" href="{{ url_for('playlist', playlist_id=p.playlist_id) }}">
         <span><b>{{ p.name }}</b> {% if p.shared %}<span class="tag">shared</span>{% endif %}

@@ -12,6 +12,7 @@ import argparse
 import csv
 import os
 import random
+import re
 import sys
 import time
 from bisect import bisect_right
@@ -20,6 +21,7 @@ from datetime import datetime, timedelta
 import pymysql
 from werkzeug.security import generate_password_hash
 
+import vibes
 from config import DB
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -62,13 +64,17 @@ def connect():
             cur.execute(f"CREATE DATABASE IF NOT EXISTS `{DB['database']}` CHARACTER SET utf8mb4")
         except pymysql.err.OperationalError:
             pass  # no CREATE privilege (e.g. a shared course server) - the database must already exist
-    conn.select_db(DB["database"])
+    try:
+        conn.select_db(DB["database"])
+    except pymysql.err.OperationalError as e:
+        sys.exit(f"Can't use database '{DB['database']}': {e.args[1]}\n"
+                 "Run  mysql -u <user> -p -e \"SHOW DATABASES;\"  and put one you can access in config.py.")
     return conn
 
 
 def run_schema(conn):
     with open(os.path.join(HERE, "schema.sql"), encoding="utf-8") as fh:
-        sql = "\n".join(line for line in fh if not line.lstrip().startswith("--"))
+        sql = re.sub(r"--[^\n]*", "", fh.read())  # drop comments so a ";" inside one can't split a statement
     with conn.cursor() as cur:
         for stmt in sql.split(";"):
             if stmt.strip():
@@ -85,6 +91,7 @@ def load_catalog(conn, csv_path):
     csv.field_size_limit(10_000_000)
     genres, artists, albums = {}, {}, {}
     tracks, track_artists, track_genres = {}, set(), set()
+    genre_names_of = {}  # track_id -> genre names, for language inference
 
     def get_id(cache, key):
         if key not in cache:
@@ -104,6 +111,7 @@ def load_catalog(conn, csv_path):
                 continue  # a handful of rows have no title/artist
             genre_id = get_id(genres, row["track_genre"].strip().lower())
             track_genres.add((track_id, genre_id))
+            genre_names_of.setdefault(track_id, set()).add(row["track_genre"].strip().lower())
             if track_id in tracks:  # same track listed again under another genre
                 continue
             artist_ids = [get_id(artists, a) for a in artist_names]
@@ -126,8 +134,9 @@ def load_catalog(conn, csv_path):
                     [(alid, n, aid) for (n, aid), alid in albums.items()])
         insert_many(cur, "INSERT INTO tracks (track_id, name, album_id, popularity, duration_ms, explicit, "
                          "danceability, energy, musical_key, loudness, mode, speechiness, acousticness, "
-                         "instrumentalness, liveness, valence, tempo, time_signature) "
-                         "VALUES (" + ", ".join(["%s"] * 18) + ")", list(tracks.values()))
+                         "instrumentalness, liveness, valence, tempo, time_signature, language) "
+                         "VALUES (" + ", ".join(["%s"] * 19) + ")",
+                    [t + (vibes.infer_language(t[1], genre_names_of[t[0]], t[13]),) for t in tracks.values()])
         insert_many(cur, "INSERT INTO track_artists (track_id, artist_id) VALUES (%s, %s)", sorted(track_artists))
         insert_many(cur, "INSERT INTO track_genres (track_id, genre_id) VALUES (%s, %s)", sorted(track_genres))
     conn.commit()

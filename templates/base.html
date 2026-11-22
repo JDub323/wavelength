@@ -30,7 +30,7 @@
     {% endfor %}
     {% block content %}{% endblock %}
 
-    {% set log = sql_log() %}
+    {% set log = sql_log() if show_sql else [] %}
     {% if log %}
       <details class="sql">
         <summary>SQL run for this page ({{ log|length }} statement{{ 's' if log|length != 1 }})</summary>

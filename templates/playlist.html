@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}{{ pl.name }} ·  Wavelength{% endblock %}
+{% from "_macros.html" import language_picker, language_picker_script %}
+{% block title %}{{ pl.name }} · Wavelength{% endblock %}
 {% block content %}
 <section class="card">
   <div class="row">
@@ -13,13 +14,16 @@
 
   <details>
     <summary>Edit playlist</summary>
-    <form method="post" action="{{ url_for('edit_playlist', playlist_id=pl.playlist_id) }}" class="inline">
-      <input name="name" value="{{ pl.name }}" required>
-      <select name="genre_id">
-        <option value="">Any genre</option>
-        {% for g in genres %}<option value="{{ g.genre_id }}" {{ 'selected' if g.genre_id == pl.genre_id }}>{{ g.name }}</option>{% endfor %}
-      </select>
-      <button class="btn small">Save (UPDATE)</button>
+    <form method="post" action="{{ url_for('edit_playlist', playlist_id=pl.playlist_id) }}" class="create-form">
+      <div class="inline">
+        <input name="name" value="{{ pl.name }}" required>
+        <select name="genre_id">
+          <option value="">Any genre</option>
+          {% for g in genres %}<option value="{{ g.genre_id }}" {{ 'selected' if g.genre_id == pl.genre_id }}>{{ g.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <input name="vibe" maxlength="255" value="{{ pl.vibe_prompt or '' }}" placeholder="Describe the vibe, e.g. a 90s nighttime drive">
+      <button class="btn small">Save</button>
     </form>
     {% if pl.owner_id == session.user_id %}
     <form method="post" action="{{ url_for('delete_playlist', playlist_id=pl.playlist_id) }}"
@@ -30,18 +34,78 @@
   </details>
 </section>
 
+<section class="card vibe">
+  <h2>Vibe{% if pl.vibe_prompt %} <span class="muted">“{{ pl.vibe_prompt }}”</span>{% endif %}</h2>
+  <form method="post" action="{{ url_for('edit_target', playlist_id=pl.playlist_id) }}">
+    <div class="sliders">
+      {% for label, f in [('Energy', 'energy'), ('Mood', 'valence'), ('Dance', 'danceability'),
+                          ('Acoustic', 'acousticness'), ('Instrumental', 'instrumentalness')] %}
+        <label><span>{{ label }}</span>
+          <input type="range" name="{{ f }}" min="0" max="1" step="0.01" value="{{ '%.2f'|format(pl['target_' ~ f]) }}"
+                 oninput="this.nextElementSibling.textContent = Number(this.value).toFixed(2)">
+          <output>{{ '%.2f'|format(pl['target_' ~ f]) }}</output></label>
+      {% endfor %}
+      <label><span>Tempo</span>
+        <input type="range" name="tempo" min="40" max="220" step="1" value="{{ pl.target_tempo|round|int }}"
+               oninput="this.nextElementSibling.textContent = this.value + ' bpm'">
+        <output>{{ pl.target_tempo|round|int }} bpm</output></label>
+    </div>
+    <div class="inline vibe-filters">
+      <label class="era">Era
+        <input type="number" name="era_start" min="1900" max="2100" placeholder="from" value="{{ pl.era_start or '' }}">
+        –
+        <input type="number" name="era_end" min="1900" max="2100" placeholder="to" value="{{ pl.era_end or '' }}">
+      </label>
+      {{ language_picker(languages, chosen_languages) }}
+      <button class="btn small">Update matches</button>
+    </div>
+    {% if not years_loaded and (pl.era_start or pl.era_end) %}
+      <p class="muted small-note">Release years haven't been loaded yet, so the era isn't applied.</p>
+    {% endif %}
+  </form>
+  {% if top_genres %}
+    <p>{% for g in top_genres %}<span class="tag">{{ g.name }}</span> {% endfor %}</p>
+  {% endif %}
+</section>
+{{ language_picker_script() }}
+
+<h2>In this playlist</h2>
 <table>
-  <thead><tr><th>Title</th><th>Artist</th><th>Album</th><th>Length</th><th>Added by</th><th></th></tr></thead>
+  <thead><tr><th>Title</th><th>Artist</th><th>Album</th><th>Year</th><th>Length</th><th>Added by</th><th></th></tr></thead>
   <tbody>
   {% for t in tracks %}
     <tr>
-      <td>{{ t.name }}</td><td>{{ t.artists }}</td><td class="muted">{{ t.album }}</td>
+      <td>{{ t.name }}</td><td>{{ t.artists }}</td><td class="muted">{{ t.album }}</td><td class="muted">{{ t.release_year or '' }}</td>
       <td>{{ t.duration_ms|mmss }}</td><td class="muted">@{{ t.added_by }}</td>
       <td><form method="post" action="{{ url_for('remove_track', playlist_id=pl.playlist_id, track_id=t.track_id) }}">
         <button class="btn small ghost" title="Remove">✕</button></form></td>
     </tr>
   {% else %}
-    <tr><td colspan="6" class="muted">Empty - start swiping or add songs from Search.</td></tr>
+    <tr><td colspan="7" class="muted">Empty - start swiping, or add songs below.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<div class="row section-head">
+  <h2>Closest matches</h2>
+  {% if suggestions %}
+  <form method="post" action="{{ url_for('fill_playlist', playlist_id=pl.playlist_id) }}">
+    <button class="btn small">Add all {{ suggestions|length }}</button>
+  </form>
+  {% endif %}
+</div>
+<table>
+  <thead><tr><th>Title</th><th>Artist</th><th>Year</th><th>Genres</th><th></th></tr></thead>
+  <tbody>
+  {% for t in suggestions %}
+    <tr>
+      <td>{{ t.name }}</td><td>{{ t.artists }}</td><td class="muted">{{ t.release_year or '' }}</td>
+      <td>{% for gname in (t.genres or '').split(', ') if gname %}<span class="tag">{{ gname }}</span> {% endfor %}</td>
+      <td><form method="post" action="{{ url_for('add_track', playlist_id=pl.playlist_id) }}">
+        <input type="hidden" name="track_id" value="{{ t.track_id }}"><button class="btn small">+</button></form></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5" class="muted">No matches - try loosening the era, languages or vibe.</td></tr>
   {% endfor %}
   </tbody>
 </table>
