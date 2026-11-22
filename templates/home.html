@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block content %}
+{% if requests_in %}
+<section class="card">
+  <h2>Friend requests</h2>
+  {% for r in requests_in %}
+    <div class="row">
+      <span><b>{{ r.display_name }}</b> <span class="muted">@{{ r.username }}</span></span>
+      <form method="post" action="{{ url_for('accept_friend', user_id=r.user_id) }}">
+        <button class="btn small">Accept</button>
+      </form>
+    </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<div class="grid">
+  <section class="card">
+    <h2>Your playlists</h2>
+    <form method="post" action="{{ url_for('create_playlist') }}" class="inline">
+      <input name="name" placeholder="New playlist name" required>
+      <select name="genre_id">
+        <option value="">Any genre</option>
+        {% for g in genres %}<option value="{{ g.genre_id }}">{{ g.name }}</option>{% endfor %}
+      </select>
+      <button class="btn small">Create</button>
+    </form>
+    {% for p in playlists %}
+      <a class="row link" href="{{ url_for('playlist', playlist_id=p.playlist_id) }}">
+        <span><b>{{ p.name }}</b> {% if p.shared %}<span class="tag">shared</span>{% endif %}
+          <span class="muted">{{ p.genre or 'any genre' }}</span></span>
+        <span class="muted">{{ p.n_tracks }} songs</span>
+      </a>
+    {% else %}
+      <p class="muted">No playlists yet. Create one above, then start swiping.</p>
+    {% endfor %}
+  </section>
+
+  <section class="card wrapped">
+    <h2>Your Wrapped</h2>
+    {% if wrapped.plays %}
+      <div class="big">{{ '{:,}'.format(wrapped.minutes) }} <small>minutes · {{ wrapped.plays }} plays</small></div>
+      <div class="two">
+        <div><h3>Top genres</h3><ol>{% for g in top_genres %}<li>{{ g.name }} <span class="muted">{{ g.minutes }} min</span></li>{% endfor %}</ol></div>
+        <div><h3>Top artists</h3><ol>{% for a in top_artists %}<li>{{ a.name }} <span class="muted">{{ a.plays }} plays</span></li>{% endfor %}</ol></div>
+      </div>
+    {% else %}
+      <p class="muted">No listening history yet.</p>
+    {% endif %}
+  </section>
+</div>
+
+<!-- {# <section class="card">
+  <h2>What your friends are listening to</h2>
+  {% if friend_feed %}
+  <div class="tiles">
+    {% for f in friend_feed %}
+      <div class="tile">
+        <b>{{ f.display_name }}</b><span class="muted">@{{ f.username }}</span>
+        <div class="big small">{{ '{:,}'.format(f.minutes) }} min</div>
+        <span>mostly <b>{{ f.top_genre }}</b></span>
+      </div>
+    {% endfor %}
+  </div>
+  {% else %}
+    <p class="muted">No friends yet. <a href="{{ url_for('search', type='users') }}">Find people</a>.</p>
+  {% endif %}
+</section> #} -->
+
+<section class="card">
+  <h2>Friends</h2>
+  {% for f in friends %}
+    <div class="row">
+      <span>{{ f.display_name }} <span class="muted">@{{ f.username }}</span></span>
+    </div>
+  {% else %}
+    <p class="muted">No friends yet. <a href="{{ url_for('search', type='users') }}">Find people</a>.</p>
+  {% endfor %}
+</section>
+
+{% endblock %}

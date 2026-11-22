@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Database · Wavelength{% endblock %}
+{% block content %}
+<h1>What's in the database</h1>
+<p class="muted">{{ '{:,}'.format(total) }} rows across {{ counts|length }} relations.</p>
+<div class="grid">
+  <table>
+    <thead><tr><th>Relation</th><th class="num">Rows</th></tr></thead>
+    <tbody>
+    {% for t, n in counts %}<tr><td><code>{{ t }}</code></td><td class="num">{{ '{:,}'.format(n) }}</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  <table>
+    <thead><tr><th>Top genres in catalog</th><th class="num">Tracks</th></tr></thead>
+    <tbody>
+    {% for g in top_genres %}<tr><td>{{ g.name }}</td><td class="num">{{ '{:,}'.format(g.n) }}</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

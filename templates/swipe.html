@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Swipe · {{ pl.name }}{% endblock %}
+{% block content %}
+<div class="swipe">
+  <p class="muted"><a href="{{ url_for('playlist', playlist_id=pl.playlist_id) }}">← {{ pl.name }}</a>
+    · {{ counts.rights or 0 }} kept · {{ counts.lefts or 0 }} skipped</p>
+  {% if track %}
+  <div class="card swipe-card">
+    {% for gname in (track.genres or '').split(', ') if gname %}<span class="tag">{{ gname }}</span> {% endfor %}
+    <h1>{{ track.name }}</h1>
+    <p>{{ track.artists }}</p>
+    <p class="muted">{{ track.album }}</p>
+    {% if track.track_id|length == 22 %}
+    <div id="embed-iframe" data-track-id="{{ track.track_id }}"></div>
+    <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
+    <script>
+    window.onSpotifyIframeApiReady = (IFrameAPI) => {
+      const el = document.getElementById('embed-iframe');
+      IFrameAPI.createController(
+        el,
+        { uri: 'spotify:track:' + el.dataset.trackId, width: '100%', height: 80 },
+        (controller) => {
+          controller.addListener('ready', () => controller.play());
+        }
+      );
+    };
+  </script>
+    <!-- <iframe src="https://open.spotify.com/embed/track/{{ track.track_id }}" height="80" loading="lazy"
+            allow="encrypted-media" title="Spotify preview"></iframe> -->
+    {% endif %}
+    <div class="meters">
+      {% for label, v in [('Energy', track.energy), ('Dance', track.danceability), ('Mood', track.valence)] %}
+        {% if v is not none %}<div><span>{{ label }}</span><meter value="{{ v }}" min="0" max="1"></meter></div>{% endif %}
+      {% endfor %}
+    </div>
+    <div class="swipe-buttons">
+      <form method="post"><input type="hidden" name="track_id" value="{{ track.track_id }}">
+        <input type="hidden" name="liked" value="0"><button id="left" class="btn round danger">✕ <small>(←)</small></button></form>
+      <form method="post"><input type="hidden" name="track_id" value="{{ track.track_id }}">
+        <input type="hidden" name="liked" value="1"><button id="right" class="btn round">♥ <small>(→)</small></button></form>
+    </div>
+    <a class="btn" style="margin-top:1.25rem;" href="{{ url_for('playlist', playlist_id=pl.playlist_id) }}">Save &amp; finish</a>
+  </div>
+  <script>
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowLeft') document.getElementById('left').click();
+      if (e.key === 'ArrowRight') document.getElementById('right').click();
+    });
+  </script>
+  {% else %}
+    <div class="card"><p>You've swiped through every song in this genre!</p></div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Search · Wavelenth{% endblock %}
+{% block content %}
+<div class="tabs">
+  <a class="{{ 'on' if kind == 'tracks' }}" href="{{ url_for('search', type='tracks') }}">Songs</a>
+  <a class="{{ 'on' if kind == 'users' }}" href="{{ url_for('search', type='users') }}">People</a>
+  <a class="{{ 'on' if kind == 'mine' }}" href="{{ url_for('search', type='mine') }}">My playlists</a>
+</div>
+
+<form class="inline card" method="get">
+  <input type="hidden" name="type" value="{{ kind }}">
+  <input name="q" value="{{ q }}" autofocus placeholder="{{ {'tracks': 'Song or artist', 'users': 'Username or name', 'mine': 'Song, artist or playlist'}[kind] }}">
+  {% if kind == 'tracks' %}
+  <select name="genre">
+    <option value="">All genres</option>
+    {% for g in genres %}<option {{ 'selected' if g.name == genre }}>{{ g.name }}</option>{% endfor %}
+  </select>
+  {% endif %}
+  <button class="btn">Search</button>
+</form>
+
+{% if q or genre %}<p class="muted">{{ results|length }} result{{ 's' if results|length != 1 }}{% if results|length >= 50 %} (showing first {{ results|length }}){% endif %}</p>{% endif %}
+
+{% if kind == 'tracks' and results %}
+<table>
+  <thead><tr><th>Title</th><th>Artist</th><th>Album</th><th>Genre</th><th>Pop.</th><th>Length</th><th>Add to</th></tr></thead>
+  <tbody>
+  {% for t in results %}
+    <tr>
+      <td>{{ t.name }}</td><td>{{ t.artists }}</td><td class="muted">{{ t.album }}</td>
+      <td>{% for gname in (t.genres or '').split(', ') if gname %}<span class="tag">{{ gname }}</span> {% endfor %}</td><td>{{ t.popularity }}</td><td>{{ t.duration_ms|mmss }}</td>
+      <td>
+        {% if playlists %}
+        <form method="post" class="add-form" onsubmit="this.action='/playlists/'+this.pid.value+'/tracks'">
+          <input type="hidden" name="track_id" value="{{ t.track_id }}">
+          <select name="pid">{% for p in playlists %}<option value="{{ p.playlist_id }}">{{ p.name }}</option>{% endfor %}</select>
+          <button class="btn small">+</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% elif kind == 'users' and results %}
+<table>
+  <thead><tr><th>Name</th><th>Username</th><th>Playlists</th><th>Joined</th><th></th></tr></thead>
+  <tbody>
+  {% for u in results %}
+    <tr>
+      <td>{{ u.display_name }}</td><td>@{{ u.username }}</td><td>{{ u.n_playlists }}</td>
+      <td class="muted">{{ u.created_at.strftime('%Y-%m-%d') }}</td>
+      <td>
+        {% if u.friend_status == 'accepted' %}<span class="tag">friends</span>
+        {% elif u.friend_status == 'pending' %}<span class="tag">pending</span>
+        {% else %}
+        <form method="post" action="{{ url_for('add_friend', user_id=u.user_id) }}"><button class="btn small">Add friend</button></form>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% elif kind == 'mine' and results %}
+<table>
+  <thead><tr><th>Playlist</th><th>Title</th><th>Artist</th></tr></thead>
+  <tbody>
+  {% for r in results %}
+    <tr><td><a href="{{ url_for('playlist', playlist_id=r.playlist_id) }}">{{ r.playlist }}</a></td>
+      <td>{{ r.name }}</td><td>{{ r.artists }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}
