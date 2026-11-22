@@ -1,4 +1,4 @@
--- Song Tinder schema (MySQL 5.7+ / 8.x). 13 relations.
+-- Song Tinder schema (MySQL 5.7+ / 8.x). 15 relations.
 -- Spotify track IDs are case-sensitive, so every track_id column uses ascii_bin.
 
 SET FOREIGN_KEY_CHECKS = 0;
@@ -6,6 +6,8 @@ DROP TABLE IF EXISTS listening_history;
 DROP TABLE IF EXISTS swipes;
 DROP TABLE IF EXISTS friendships;
 DROP TABLE IF EXISTS playlist_collaborators;
+DROP TABLE IF EXISTS playlist_languages;
+DROP TABLE IF EXISTS playlist_genres;
 DROP TABLE IF EXISTS playlist_tracks;
 DROP TABLE IF EXISTS playlists;
 DROP TABLE IF EXISTS track_genres;
@@ -65,9 +67,13 @@ CREATE TABLE tracks (
     valence          FLOAT,
     tempo            FLOAT,
     time_signature   TINYINT,
+    release_year     SMALLINT,          -- from the Spotify API (fetch_release_years.py), NULL until fetched
+    language         VARCHAR(20),       -- inferred from title script + genre (the dataset has no language field)
     FOREIGN KEY (album_id) REFERENCES albums(album_id),
     INDEX idx_tracks_name (name(100)),
-    INDEX idx_tracks_popularity (popularity)
+    INDEX idx_tracks_popularity (popularity),
+    INDEX idx_tracks_release_year (release_year),
+    INDEX idx_tracks_language (language)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE track_artists (
@@ -97,8 +103,30 @@ CREATE TABLE playlists (
     genre_id    INT,                                -- the genre the swipe feed draws from
     description VARCHAR(255),
     created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- vibe: the user's prompt, the reference vibes it matched, and the target point in
+    -- audio-feature space that the swipe feed ranks against (refined by every swipe)
+    vibe_prompt             VARCHAR(255),
+    vibe_matches            VARCHAR(255),
+    target_energy           FLOAT,
+    target_valence          FLOAT,
+    target_danceability     FLOAT,
+    target_acousticness     FLOAT,
+    target_instrumentalness FLOAT,
+    target_tempo            FLOAT,
+    era_start               SMALLINT,   -- release-year range ("90s" -> 1990-1999), NULL = any
+    era_end                 SMALLINT,
     FOREIGN KEY (owner_id) REFERENCES users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (genre_id) REFERENCES genres(genre_id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- how much each genre is favored when ranking songs for a playlist (refined by swipes)
+CREATE TABLE playlist_genres (
+    playlist_id INT   NOT NULL,
+    genre_id    INT   NOT NULL,
+    weight      FLOAT NOT NULL,
+    PRIMARY KEY (playlist_id, genre_id),
+    FOREIGN KEY (playlist_id) REFERENCES playlists(playlist_id) ON DELETE CASCADE,
+    FOREIGN KEY (genre_id)    REFERENCES genres(genre_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE playlist_tracks (
@@ -154,4 +182,12 @@ CREATE TABLE listening_history (
     INDEX idx_history_user (user_id, played_at),
     FOREIGN KEY (user_id)  REFERENCES users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (track_id) REFERENCES tracks(track_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- languages a playlist is limited to (no rows = any language)
+CREATE TABLE playlist_languages (
+    playlist_id INT NOT NULL,
+    language    VARCHAR(20) NOT NULL,
+    PRIMARY KEY (playlist_id, language),
+    FOREIGN KEY (playlist_id) REFERENCES playlists(playlist_id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
